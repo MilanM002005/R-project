@@ -1,41 +1,91 @@
-# Sentimental analysis of a CSV file containing tweets regarding Mr. Virat Kohli
+# Set working directory
+setwd("C:/Users/milan/R-Projects/Twitter Sentimental Analysis")
 
-# Importing required Libraries
-
-# syuzhet library is used for sentiment extraction or getting the sentiment scores
+# Load libraries
 library(syuzhet)
-
-# SentimentAnalysis library is used for Sentimental analysis
 library(SentimentAnalysis)
-
-# ggplot2 is used for plotting the final plot of the sentimental analysis
 library(ggplot2)
+library(wordcloud)
+library(RColorBrewer)
 
-# Importing Csv file in R which contains all the tweets
-tweets<-read.csv("C:\\Users\\rawat\\Documents\\4 SEMESTER\\R for Datascience\\Assigment\\Assignment 1\\Tweets.csv")
+# Read dataset
+tweets <- read.csv("Tweets.csv", stringsAsFactors = FALSE, quote="")
 
-# Data Cleaning
-# Removing corrupted data/Symbols
+# Extract tweet text
+tweet_text <- tweets$text
 
-clean_tx1 = gsub("(RT|via)((?:\\b\\w*@\\w+)+)","",tweets)
-clean_tx2 = gsub("http[^[:blank:]]+","",clean_tx1)
-clean_tx3 = gsub("@\\w+","",clean_tx2)
-clean_tx4 = gsub("[[:punct:]]","",clean_tx3)
-clean_tx5 = gsub("^[[:alnum:]]","",clean_tx4)
+# Clean tweets
+clean_tx1 <- gsub("(RT|via)((?:\\b\\w*@\\w+)+)", "", tweet_text)
+clean_tx2 <- gsub("http[^[:blank:]]+", "", clean_tx1)
+clean_tx3 <- gsub("@\\w+", "", clean_tx2)
+clean_tx4 <- gsub("[[:punct:]]", "", clean_tx3)
+clean_tx5 <- gsub("[[:digit:]]", "", clean_tx4)
 
-# Fetches the sentiments related to tweets
-sentiment <- get_nrc_sentiment(clean_tx4)
-sentimentscores <- data.frame(colSums(sentiment[,]))
+# Sentiment analysis
+sentiment <- get_nrc_sentiment(clean_tx5)
+
+# Calculate sentiment scores
+sentimentscores <- data.frame(colSums(sentiment))
 names(sentimentscores) <- "Score"
 
-# Viewing sentiments Score
-View(sentimentscores)
-
-# Combining in dataframe to plot
-sentimentscores <- cbind("sent"=rownames(sentimentscores),sentimentscores)
+sentimentscores <- cbind("sent" = rownames(sentimentscores), sentimentscores)
 rownames(sentimentscores) <- NULL
-View(sentimentscores)
 
-# Plotting Output in ggplot2
-ggplot(data=sentimentscores,aes(x=sent,y=Score))+geom_bar(aes(fill=sent),stat="identity")+
-  theme(legend.position = "none")+ xlab("Sentiments")+ ylab("Scores/Count") + ggtitle("Sentimental Analysis of Twitter Plot")
+print(sentimentscores)
+
+# --------------------------------
+# 1️⃣ Sentiment Bar Plot
+# --------------------------------
+
+p1 <- ggplot(sentimentscores, aes(x=sent, y=Score, fill=sent)) +
+  geom_bar(stat="identity") +
+  theme_minimal() +
+  theme(legend.position="none") +
+  xlab("Sentiments") +
+  ylab("Scores") +
+  ggtitle("Twitter Sentiment Distribution")
+
+ggsave("sentiment_bar_plot.png", plot=p1, width=8, height=6)
+
+# --------------------------------
+# 2️⃣ Positive vs Negative Pie Chart
+# --------------------------------
+
+pos_neg <- sentimentscores[sentimentscores$sent %in% c("positive","negative"),]
+
+png("positive_negative_pie.png", width=800, height=600)
+
+pie(pos_neg$Score,
+    labels=pos_neg$sent,
+    col=c("green","red"),
+    main="Positive vs Negative Tweets")
+
+dev.off()
+
+# --------------------------------
+# 3️⃣ Emotion Distribution Plot
+# --------------------------------
+
+emotion_data <- sentimentscores[1:8,]
+
+p2 <- ggplot(emotion_data, aes(x=sent, y=Score, fill=sent)) +
+  geom_bar(stat="identity") +
+  theme_minimal() +
+  ggtitle("Emotion Distribution in Tweets") +
+  xlab("Emotion") +
+  ylab("Count")
+
+ggsave("emotion_distribution.png", plot=p2, width=8, height=6)
+
+# --------------------------------
+# 4️⃣ Word Cloud
+# --------------------------------
+
+png("wordcloud.png", width=800, height=600)
+
+wordcloud(words=clean_tx5,
+          max.words=100,
+          colors=brewer.pal(8,"Dark2"),
+          random.order=FALSE)
+
+dev.off()
